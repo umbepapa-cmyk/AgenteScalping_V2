@@ -73,14 +73,17 @@ def check_config_ini():
     try:
         config = configparser.ConfigParser()
         config.read(config_path)
-        default = config['DEFAULT']
-        host = default.get('host', 'NON TROVATO')
-        port = default.get('port', 'NON TROVATO')
-        client_id = default.get('client_id', 'NON TROVATO')
+        # Leggi dalla sezione [IB] invece di DEFAULT
+        ib_section = config['IB'] if 'IB' in config else config['DEFAULT']
+        host = ib_section.get('host', 'NON TROVATO')
+        port = ib_section.get('port', 'NON TROVATO')
+        client_id = ib_section.get('client_id', 'NON TROVATO')
+        environment = ib_section.get('environment', 'NON SPECIFICATO')
         return f"""✅ config.ini trovato:
 - host: {host}
 - port: {port}
-- client_id: {client_id}"""
+- client_id: {client_id}
+- environment: {environment}"""
     except Exception as e:
         return f"❌ Errore lettura config.ini: {e}"
 

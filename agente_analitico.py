@@ -39,13 +39,25 @@ async def main():
     # --- CORREZIONE: Specifica la sezione quando leggi i valori ---
     ib_config = config['IB']
     strategy_config = config['STRATEGY']
+    trading_env = ib_config.get('environment', 'PAPER').upper()
+    if trading_env not in {'PAPER', 'LIVE'}:
+        logging.warning("Ambiente IB '%s' non riconosciuto, uso PAPER.", trading_env)
+        trading_env = 'PAPER'
+    default_port = 7497 if trading_env == 'PAPER' else 7496
+    host = ib_config.get('host', '127.0.0.1')
+    port = ib_config.getint('port', default_port)
+    client_id = ib_config.getint('client_id', 1)
+    logging.info(
+        "Configurazione IB: environment=%s host=%s port=%s client_id=%s",
+        trading_env, host, port, client_id
+    )
     
     # 2. Inizializzazione del Connection Manager
     # --- CORREZIONE: Aggiungi valori di fallback per gestire l'assenza di chiavi ---
     conn_manager = ConnectionManager(
-        host=ib_config.get('host', '127.0.0.1'),
-        port=ib_config.getint('port', 4002),
-        client_id=ib_config.getint('client_id', 1)
+        host=host,
+        port=port,
+        client_id=client_id
     )
 
     # Inizializzazione dell'Analista AI
@@ -55,6 +67,12 @@ async def main():
         # 3. Connessione a IB Gateway
         if not await conn_manager.connect():
             return # Termina se la connessione iniziale fallisce
+
+        logging.info(
+            "Connessione a IB stabilita (environment=%s, paper_mode=%s).",
+            trading_env,
+            trading_env == 'PAPER'
+        )
 
         # 4. Definizione e qualificazione del contratto (come esempio)
         # --- CORREZIONE: Aggiungi valori di fallback anche qui ---
