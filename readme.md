@@ -16,12 +16,6 @@ Analisi Performance: Script dedicato per generare report su P&L e accuratezza.
 
 🛠️ Installazione
 
-Clona il repository:
-
-git clone [https://github.com/TUO_USERNAME/TUO_REPO.git](https://github.com/TUO_USERNAME/TUO_REPO.git)
-cd TUO_REPO
-
-
 Crea un ambiente virtuale:
 
 python -m venv .venv
