@@ -1,0 +1,9 @@
+ib_async
+pandas
+python-dotenv
+langchain
+langchain-google-genai
+langchain-community
+chromadb
+pypdf
+configparser

@@ -1,0 +1,39 @@
+--- File di configurazione sensibili ---
+
+.env
+.env.local
+
+--- Ambienti virtuali ---
+
+venv/
+.venv/
+env/
+
+--- Python cache e compilati ---
+
+pycache/
+*.py[cod]
+*$py.class
+
+--- Log e Dati Runtime ---
+
+*.log
+trading_agent.log
+trade_events.log
+balance_data.txt
+trading_log_avanzato.csv
+
+--- Database Vettoriale (ChromaDB) ---
+
+È meglio rigenerarlo localmente che caricarlo su GitHub
+
+chroma_db/
+
+--- Documenti (Opzionale: rimuovi il # se vuoi caricare i PDF, ma sconsigliato se sono coperti da copyright) ---
+
+ebooks/
+
+--- IDE settings (VS Code, PyCharm) ---
+
+.vscode/
+.idea/
