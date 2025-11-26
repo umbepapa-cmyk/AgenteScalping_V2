@@ -115,28 +115,33 @@ async def test_ib_connection(host: str, port: int, client_id: int, timeout: int 
             print(f"   📍 ConId: {contract.conId}")
         else:
             print("   ⚠️  Impossibile qualificare il contratto")
+            contract = None  # Mark contract as invalid
     except Exception as e:
         print(f"   ⚠️  Errore qualifica contratto: {e}")
+        contract = None  # Mark contract as invalid
     
-    # Step 5: Test richiesta dati di mercato
+    # Step 5: Test richiesta dati di mercato (only if contract was qualified)
     print("\n📈 Test richiesta dati di mercato...")
-    try:
-        # Richiedi ticker per vedere se i dati di mercato funzionano
-        ticker = ib.reqMktData(contract, '', False, False)
-        await asyncio.sleep(2)  # Attendi 2 secondi per i dati
-        
-        if ticker.bid and ticker.ask:
-            print(f"   ✅ Dati di mercato ricevuti:")
-            print(f"      Bid: {ticker.bid:.5f}")
-            print(f"      Ask: {ticker.ask:.5f}")
-            spread = (ticker.ask - ticker.bid) * 10000  # pips
-            print(f"      Spread: {spread:.1f} pips")
-        else:
-            print("   ⚠️  Nessun dato di mercato ricevuto (potrebbe essere fuori orario)")
-        
-        ib.cancelMktData(contract)
-    except Exception as e:
-        print(f"   ⚠️  Errore dati di mercato: {e}")
+    if contract and contract.conId:
+        try:
+            # Richiedi ticker per vedere se i dati di mercato funzionano
+            ticker = ib.reqMktData(contract, '', False, False)
+            await asyncio.sleep(2)  # Attendi 2 secondi per i dati
+            
+            if ticker.bid and ticker.ask:
+                print(f"   ✅ Dati di mercato ricevuti:")
+                print(f"      Bid: {ticker.bid:.5f}")
+                print(f"      Ask: {ticker.ask:.5f}")
+                spread = (ticker.ask - ticker.bid) * 10000  # pips
+                print(f"      Spread: {spread:.1f} pips")
+            else:
+                print("   ⚠️  Nessun dato di mercato ricevuto (potrebbe essere fuori orario)")
+            
+            ib.cancelMktData(contract)
+        except Exception as e:
+            print(f"   ⚠️  Errore dati di mercato: {e}")
+    else:
+        print("   ⚠️  Skipped: contratto non qualificato")
     
     # Disconnessione
     print("\n🔌 Disconnessione...")

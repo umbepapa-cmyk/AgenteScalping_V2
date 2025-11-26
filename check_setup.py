@@ -52,7 +52,8 @@ def check_dependencies():
             alt = None
             if pkg == "langchain-google-genai":
                 alt = _pkg_version("google-genai") or _pkg_version("langchain_google_genai")
-            # tenta ib_insync come alternativa per ib_async
+            # tenta ib_insync come alternativa per ib_async (backward compatibility)
+            # ib_insync è il vecchio nome del pacchetto, ora rinominato in ib_async
             if pkg == "ib_async":
                 alt = _pkg_version("ib_insync")
             if alt:
