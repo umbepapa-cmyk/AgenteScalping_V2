@@ -37,15 +37,29 @@ Crea un file .env basato sulle tue chiavi API:
 GEMINI_API_KEY=la_tua_chiave_qui
 
 
-Configura config.ini con le porte corrette di TWS/Gateway (es. 7497 per TWS Live, 4002 per Gateway Paper).
+Configura config.ini con le porte corrette di TWS/Gateway:
+- TWS Live: 7496
+- TWS Paper: 7497
+- Gateway Live: 4001
+- Gateway Paper: 4002
 
 ▶️ Utilizzo
 
 Avvia IB Gateway o TWS e assicurati che l'API sia abilitata.
 
+Se IB Gateway è su un server remoto, apri un tunnel SSH:
+
+ssh -L 4002:localhost:4002 user@server
+
+
 Verifica il setup (opzionale ma consigliato):
 
 python check_setup.py
+
+
+Testa la connessione a IB Gateway:
+
+python test_connection.py
 
 
 Costruisci la conoscenza (se hai aggiunto PDF in ebooks/):
@@ -67,3 +81,7 @@ ai_analyst.py: Logica decisionale dell'AI.
 connection_manager.py: Wrapper per la connessione IB.
 
 knowledge_builder.py: Script per indicizzare i PDF in ChromaDB.
+
+test_connection.py: Script per testare la connessione a IB Gateway.
+
+check_setup.py: Script di diagnostica per verificare le dipendenze e la configurazione.
