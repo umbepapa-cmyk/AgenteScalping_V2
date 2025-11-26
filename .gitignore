@@ -11,7 +11,7 @@ env/
 
 --- Python cache e compilati ---
 
-pycache/
+__pycache__/
 *.py[cod]
 *$py.class
 
@@ -22,6 +22,8 @@ trading_agent.log
 trade_events.log
 balance_data.txt
 trading_log_avanzato.csv
+test_scalping_5ops_results.csv
+test_scalping_5ops.log
 
 --- Database Vettoriale (ChromaDB) ---
 
