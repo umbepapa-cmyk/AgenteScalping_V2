@@ -32,11 +32,17 @@ logger = logging.getLogger('ScalpingTest')
 # Riduce verbosità dei log interni di ib_async
 util.logToConsole(logging.WARNING)
 
+# Costanti per la simulazione dei prezzi (fallback quando dati di mercato non disponibili)
+FALLBACK_BASE_PRICE = 1.05000  # Prezzo base EUR/USD
+FALLBACK_PRICE_VARIANCE = 0.002  # Varianza massima (+/-)
+DEFAULT_QUANTITY = 20000  # Quantità di default per trade
+
 
 class ScalpingTester:
     """Classe per eseguire test di scalping in paper trading."""
     
-    def __init__(self, host: str = '127.0.0.1', port: int = 4002, client_id: int = 26):
+    def __init__(self, host: str = '127.0.0.1', port: int = 4002, client_id: int = 26, 
+                 quantity: int = DEFAULT_QUANTITY):
         self.host = host
         self.port = port
         self.client_id = client_id
@@ -44,7 +50,9 @@ class ScalpingTester:
         self.operazioni: List[Dict[str, Any]] = []
         self.contract: Optional[Contract] = None
         self.current_position = 0
-        self.quantity = 20000  # Quantità di unità per trade
+        self.quantity = quantity  # Quantità di unità per trade
+        self.realized_pnl = 0.0  # P&L realizzato cumulativo
+        self.cost_basis: List[tuple] = []  # Lista di (price, quantity) per calcolo FIFO
         
     async def connect(self) -> bool:
         """Connette al IB Gateway."""
@@ -132,7 +140,7 @@ class ScalpingTester:
             
             if not price:
                 # Usa prezzo simulato se non disponibile
-                price = 1.05000 + random.uniform(-0.002, 0.002)
+                price = FALLBACK_BASE_PRICE + random.uniform(-FALLBACK_PRICE_VARIANCE, FALLBACK_PRICE_VARIANCE)
                 logger.warning(f"Usando prezzo simulato: {price:.5f}")
             
             order = MarketOrder(action, self.quantity)
@@ -157,11 +165,29 @@ class ScalpingTester:
                 status = 'SUBMITTED'
                 logger.info(f"⏳ Ordine inviato (pending): {action} @ {fill_price:.5f}")
             
-            # Aggiorna posizione
+            # Calcolo P&L FIFO e aggiornamento posizione
+            trade_pnl = 0.0
             if action == 'BUY':
+                # Aggiunge al cost basis
+                self.cost_basis.append((fill_price, self.quantity))
                 self.current_position += self.quantity
-            else:
+            else:  # SELL
+                # Calcola P&L usando FIFO
+                qty_to_close = self.quantity
+                while qty_to_close > 0 and self.cost_basis:
+                    entry_price, entry_qty = self.cost_basis[0]
+                    if entry_qty <= qty_to_close:
+                        # Chiude completamente questa posizione
+                        trade_pnl += (fill_price - entry_price) * entry_qty
+                        qty_to_close -= entry_qty
+                        self.cost_basis.pop(0)
+                    else:
+                        # Chiude parzialmente
+                        trade_pnl += (fill_price - entry_price) * qty_to_close
+                        self.cost_basis[0] = (entry_price, entry_qty - qty_to_close)
+                        qty_to_close = 0
                 self.current_position -= self.quantity
+                self.realized_pnl += trade_pnl
             
             operazione = {
                 'timestamp': timestamp,
@@ -171,7 +197,8 @@ class ScalpingTester:
                 'price': fill_price,
                 'status': status,
                 'reason': reason,
-                'position': self.current_position
+                'position': self.current_position,
+                'trade_pnl': trade_pnl
             }
             
             self.operazioni.append(operazione)
@@ -298,32 +325,20 @@ class ScalpingTester:
         logger.info(f"BUY: {buys} | SELL: {sells}")
         logger.info(f"Eseguiti: {filled} | Errori: {errors}")
         
-        # Calcolo P&L approssimativo
-        pnl = 0.0
-        buy_prices = []
-        sell_prices = []
+        # P&L Realizzato (calcolato con metodo FIFO durante l'esecuzione)
+        logger.info(f"\n💰 P&L Realizzato (FIFO): ${self.realized_pnl:.2f}")
         
-        for op in self.operazioni:
-            if op['price'] > 0:
-                if op['action'] == 'BUY':
-                    buy_prices.append(op['price'])
-                else:
-                    sell_prices.append(op['price'])
-        
-        # P&L semplificato (differenza media tra sell e buy)
-        if buy_prices and sell_prices:
-            avg_buy = sum(buy_prices) / len(buy_prices)
-            avg_sell = sum(sell_prices) / len(sell_prices)
-            pnl = (avg_sell - avg_buy) * self.quantity
-        
-        logger.info(f"\n💰 P&L Stimato: ${pnl:.2f}")
+        # Posizione residua
+        if self.current_position != 0:
+            logger.info(f"⚠️  Posizione residua: {self.current_position} unità")
         
         # Dettaglio operazioni
         logger.info("\n--- DETTAGLIO OPERAZIONI ---")
         for i, op in enumerate(self.operazioni, 1):
+            pnl_str = f" | P&L: ${op.get('trade_pnl', 0):.2f}" if op.get('trade_pnl', 0) != 0 else ""
             logger.info(
                 f"{i}. [{op['timestamp']}] {op['action']} {op['quantity']} @ "
-                f"{op['price']:.5f} ({op['status']}) - {op['reason'][:50]}"
+                f"{op['price']:.5f} ({op['status']}){pnl_str} - {op['reason'][:50]}"
             )
         
         # Salva in CSV
@@ -359,17 +374,25 @@ async def main():
     host = '127.0.0.1'
     port = 4002
     client_id = 26
+    quantity = DEFAULT_QUANTITY
     
     if config_path.exists():
-        config = configparser.ConfigParser()
-        config.read(config_path)
-        ib_config = config['IB']
-        host = ib_config.get('host', host)
-        port = ib_config.getint('port', port)
-        client_id = ib_config.getint('client_id', client_id) + 1  # Usa ID diverso
+        try:
+            config = configparser.ConfigParser()
+            config.read(config_path)
+            if 'IB' in config:
+                ib_config = config['IB']
+                host = ib_config.get('host', host)
+                port = ib_config.getint('port', port)
+                client_id = ib_config.getint('client_id', client_id) + 1  # Usa ID diverso
+            if 'STRATEGY' in config:
+                strategy_config = config['STRATEGY']
+                quantity = strategy_config.getint('quantity', quantity)
+        except (configparser.Error, ValueError) as e:
+            logger.warning(f"Errore nella lettura di config.ini: {e}. Uso valori di default.")
     
     # Crea tester e esegui
-    tester = ScalpingTester(host=host, port=port, client_id=client_id)
+    tester = ScalpingTester(host=host, port=port, client_id=client_id, quantity=quantity)
     
     try:
         await tester.run_scalping_test(num_trades=5)
