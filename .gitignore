@@ -47,6 +47,7 @@ trading_agent.log
 trade_events.log
 balance_data.txt
 trading_log_avanzato.csv
+test_5_operazioni_risultati.csv
 
 --- Database Vettoriale (ChromaDB) ---
 
