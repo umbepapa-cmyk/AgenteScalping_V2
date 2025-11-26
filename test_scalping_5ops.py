@@ -36,6 +36,23 @@ try:
 except ImportError:
     IB_AVAILABLE = False
 
+# ===== Constants =====
+DEFAULT_SYMBOL = 'EUR'
+DEFAULT_CURRENCY = 'USD'
+DEFAULT_LOCAL_SYMBOL = 'EUR.USD'
+DEFAULT_SEC_TYPE = 'CASH'
+DEFAULT_EXCHANGE = 'IDEALPRO'
+
+# Simulation parameters
+SIM_BASE_PRICE = 1.08500  # Base EUR/USD price for simulation
+SIM_PRICE_SPREAD_RANGE = (-0.00005, 0.00005)
+SIM_SLIPPAGE_RANGE = (0, 0.00002)
+SIM_PRICE_MOVEMENT_RANGE = (-0.0005, 0.0005)
+SIM_HOLD_PRICE_MOVEMENT = (-0.0002, 0.0003)
+
+# Trading constants
+PIP_MULTIPLIER = 10000  # For EUR/USD pip calculation
+
 # Configure logging
 log_file = Path(__file__).parent / 'test_scalping_5ops.log'
 logging.basicConfig(
@@ -55,16 +72,16 @@ if IB_AVAILABLE:
 class SimulatedContract:
     """Simulated contract for testing without IB connection."""
     def __init__(self):
-        self.symbol = 'EUR'
-        self.localSymbol = 'EUR.USD'
-        self.secType = 'CASH'
-        self.exchange = 'IDEALPRO'
-        self.currency = 'USD'
+        self.symbol = DEFAULT_SYMBOL
+        self.localSymbol = DEFAULT_LOCAL_SYMBOL
+        self.secType = DEFAULT_SEC_TYPE
+        self.exchange = DEFAULT_EXCHANGE
+        self.currency = DEFAULT_CURRENCY
 
 
 class SimulatedOrderStatus:
     """Simulated order status for testing."""
-    def __init__(self, status='Filled', avg_fill_price=1.08500):
+    def __init__(self, status='Filled', avg_fill_price=SIM_BASE_PRICE):
         self.status = status
         self.avgFillPrice = avg_fill_price
 
@@ -79,12 +96,12 @@ class SimulatedTrade:
     """Simulated trade for testing without IB connection."""
     _order_counter = 1000
     
-    def __init__(self, action, quantity, base_price=1.08500):
+    def __init__(self, action, quantity, base_price=SIM_BASE_PRICE):
         SimulatedTrade._order_counter += 1
         self.order = SimulatedOrder(SimulatedTrade._order_counter)
         # Simulate realistic price movement
-        spread = random.uniform(-0.00005, 0.00005)
-        slippage = random.uniform(0, 0.00002) * (1 if action == 'BUY' else -1)
+        spread = random.uniform(*SIM_PRICE_SPREAD_RANGE)
+        slippage = random.uniform(*SIM_SLIPPAGE_RANGE) * (1 if action == 'BUY' else -1)
         fill_price = base_price + spread + slippage
         self.orderStatus = SimulatedOrderStatus('Filled', fill_price)
 
@@ -101,7 +118,7 @@ class ScalpingTestRunner:
         self.operations_log = []
         self.total_operations = 5
         self.quantity = 10000  # Default quantity for forex
-        self._simulated_base_price = 1.08500  # Base EUR/USD price for simulation
+        self._simulated_base_price = SIM_BASE_PRICE
         
     async def connect(self) -> bool:
         """Connect to IB Gateway with retry logic."""
@@ -151,14 +168,14 @@ class ScalpingTestRunner:
     async def setup_contract(self) -> Optional[Contract]:
         """Set up and qualify the trading contract (EUR/USD)."""
         if self.simulate:
-            logging.info("🔄 SIMULATION MODE - Using simulated EUR/USD contract")
+            logging.info(f"🔄 SIMULATION MODE - Using simulated {DEFAULT_LOCAL_SYMBOL} contract")
             return SimulatedContract()
             
         contract = Contract()
-        contract.symbol = 'EUR'
-        contract.secType = 'CASH'
-        contract.exchange = 'IDEALPRO'
-        contract.currency = 'USD'
+        contract.symbol = DEFAULT_SYMBOL
+        contract.secType = DEFAULT_SEC_TYPE
+        contract.exchange = DEFAULT_EXCHANGE
+        contract.currency = DEFAULT_CURRENCY
         
         try:
             qualified = await self.ib.qualifyContractsAsync(contract)
@@ -194,10 +211,12 @@ class ScalpingTestRunner:
         Returns:
             dict with operation details
         """
+        # Use getattr to safely get localSymbol (handles both real and simulated contracts)
+        symbol = getattr(contract, 'localSymbol', DEFAULT_LOCAL_SYMBOL)
         result = {
             'operation_num': operation_num,
             'timestamp_start': datetime.now().isoformat(),
-            'symbol': contract.localSymbol,
+            'symbol': symbol,
             'quantity': self.quantity,
             'buy_order_id': None,
             'buy_price': None,
@@ -220,7 +239,7 @@ class ScalpingTestRunner:
             if self.simulate:
                 # SIMULATION MODE
                 # Update base price with small random movement
-                self._simulated_base_price += random.uniform(-0.0005, 0.0005)
+                self._simulated_base_price += random.uniform(*SIM_PRICE_MOVEMENT_RANGE)
                 
                 # Simulated BUY
                 logging.info(f"📈 [SIM] Placing BUY order for {self.quantity} {contract.symbol}...")
@@ -236,7 +255,7 @@ class ScalpingTestRunner:
                 await asyncio.sleep(1)
                 
                 # Update price for sell (small movement)
-                self._simulated_base_price += random.uniform(-0.0002, 0.0003)
+                self._simulated_base_price += random.uniform(*SIM_HOLD_PRICE_MOVEMENT)
                 
                 # Simulated SELL
                 logging.info(f"📉 [SIM] Placing SELL order for {self.quantity} {contract.symbol}...")
@@ -298,7 +317,7 @@ class ScalpingTestRunner:
             
             # Calculate P&L if both orders filled
             if result['buy_price'] and result['sell_price']:
-                pips = (result['sell_price'] - result['buy_price']) * 10000
+                pips = (result['sell_price'] - result['buy_price']) * PIP_MULTIPLIER
                 result['pnl'] = pips  # P&L in pips
                 logging.info(f"📊 Operation P&L: {pips:.2f} pips")
                 result['success'] = True
