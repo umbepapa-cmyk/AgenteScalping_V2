@@ -1,9 +1,18 @@
-ib_async
-pandas
+# Core runtime
+ibapi==9.81.1.post1
+ib_async>=1.0.0
 python-dotenv
-langchain
-langchain-google-genai
-langchain-community
-chromadb
-pypdf
+httpx
 configparser
+nest_asyncio>=1.5.6
+
+# Data / utils (optional but commonly used)
+pandas
+tzdata>=2023.3
+
+# LLM / RAG (optional - separate install recommended)
+# langchain
+# langchain-google-genai
+# langchain-community
+# chromadb
+# pypdf

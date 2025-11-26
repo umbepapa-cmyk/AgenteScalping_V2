@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  ib-gateway:
+    image: ghcr.io/gnzsnz/ib-gateway:stable
+    container_name: ib-gateway
+    restart: always
+    environment:
+      - TWS_USERID=${IB_USER}
+      - TWS_PASSWORD=${IB_PASS}
+      - TRADING_MODE=paper
+      - VNC_PASSWORD=passwordVNC
+      - TWOFA_TIMEOUT_ACTION=restart
+    ports:
+      - "4001:4001"
+      - "5900:5900"
+
+  scalping-bot:
+    build: .
+    container_name: scalping-agent
+    restart: always
+    depends_on:
+      - ib-gateway
+    env_file: .env
+    environment:
+      - IB_HOST=ib-gateway
+      - IB_PORT=4001
+      - IB_CLIENT_ID=1
+    volumes:
+      - ./:/app

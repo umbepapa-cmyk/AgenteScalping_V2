@@ -1,0 +1,36 @@
+Files chosen for deployment (generated):
+
+# Core files
+agente_analitico.py
+ai_analyst.py
+connection_manager.py
+config.ini
+readme.md
+requirements.txt
+
+# Agent core
+agent_core/__init__.py
+agent_core/contracts.py
+agent_core/intel.py
+agent_core/scalping_strategy.py
+agent_core/trade_logging.py
+
+# Feeds & helpers
+crypto_feed.py
+market_hours.py
+news_fetcher.py
+search_fetcher.py
+
+# Tools
+tools/test_connect.py
+tools/smoke_test_scalper.py
+
+# Packaging helper + upload instructions
+package_for_filezilla.ps1
+UPLOAD.md
+
+# Secrets note
+# The archive intentionally excludes `.env` and any `*.env` files. Create `.env` on the server from `.env.example` after upload and set secure permissions (chmod 600).
+
+# Notes
+# Exclude: .venv/, .git/, logs/ (unless you specifically want logs), and any file containing secrets (.env / Scalping_V2.txt)

@@ -1,0 +1,10 @@
+# Minimal runtime requirements for container
+ibapi==9.81.1.post1
+ib_async>=1.0.0
+python-dotenv
+httpx
+nest_asyncio>=1.5.6
+configparser
+# Optional
+pandas
+tzdata>=2023.3
