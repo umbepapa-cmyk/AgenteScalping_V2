@@ -19,10 +19,10 @@ def _pkg_version(name: str):
 def check_tws_ports():
     """Verifica le porte comuni TWS/Gateway."""
     ports = {
-        7496: "TWS Paper Trading",
-        7497: "TWS Live Trading",
-        4001: "Gateway Paper Trading", 
-        4002: "Gateway Live Trading"
+        7496: "TWS Live Trading",
+        7497: "TWS Paper Trading",
+        4001: "Gateway Live Trading", 
+        4002: "Gateway Paper Trading"
     }
     results = {}
     for port, desc in ports.items():
@@ -36,7 +36,7 @@ def check_tws_ports():
 def check_dependencies():
     """Verifica dipendenze Python e mostra versioni se presenti."""
     deps = {
-        "ib_insync": "Richiesto per TWS/Gateway API",
+        "ib_async": "Richiesto per TWS/Gateway API",
         "python-dotenv": "Richiesto per .env",
         "langchain": "Opzionale per AI",
         "langchain-google-genai": "Opzionale per Gemini (nome pacchetto possibile diverso)",
@@ -52,10 +52,14 @@ def check_dependencies():
             alt = None
             if pkg == "langchain-google-genai":
                 alt = _pkg_version("google-genai") or _pkg_version("langchain_google_genai")
+            # tenta ib_insync come alternativa per ib_async (backward compatibility)
+            # ib_insync è il vecchio nome del pacchetto, ora rinominato in ib_async
+            if pkg == "ib_async":
+                alt = _pkg_version("ib_insync")
             if alt:
                 results[pkg] = f"✅ {desc}: INSTALLATO (versione {alt})"
             else:
-                results[pkg] = f"{'❌' if pkg in ['ib_insync', 'python-dotenv'] else '⚠️'} {desc}: NON INSTALLATO"
+                results[pkg] = f"{'❌' if pkg in ['ib_async', 'python-dotenv'] else '⚠️'} {desc}: NON INSTALLATO"
     # aggiungi versione Python
     try:
         py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
@@ -140,7 +144,7 @@ def check_folders():
 def suggest_install_commands(results: dict) -> list:
     """Ritorna comandi pip suggeriti per i pacchetti mancanti (richiesti)."""
     cmds = []
-    required = ['ib_insync', 'python-dotenv']
+    required = ['ib_async', 'python-dotenv']
     for pkg in required:
         entry = results.get(pkg)
         if entry and ('NON INSTALLATO' in entry or '⚠️' in entry):
@@ -240,13 +244,15 @@ def main():
    - Avvia TWS/Gateway
    - Abilita API: Configure > API > Settings > Enable ActiveX and Socket Clients
    - Verifica firewall/antivirus
+   - Se IB Gateway è su un server remoto, apri un tunnel SSH:
+     ssh -L 4002:localhost:4002 user@server
 
 2. Se mancano dipendenze richieste:
-   pip install ib_insync python-dotenv
+   pip install ib_async python-dotenv
 
 3. Se config.ini non è corretto:
    - Verifica host (default: 127.0.0.1)
-   - Verifica porta (TWS: 7496/7497, Gateway: 4001/4002)
+   - Verifica porta (TWS Live: 7496, TWS Paper: 7497, Gateway Live: 4001, Gateway Paper: 4002)
    - Assegna un client_id univoco
 
 4. Se manca GEMINI_API_KEY:
